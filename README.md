@@ -132,8 +132,8 @@ flowchart TD
 ### 1. Clone & Start All Services
 ```bash
 # Clone the repository
-git clone https://github.com/lucifer4330k/weatherpulse-.git
-cd weatherpulse-
+git clone https://github.com/lucifer4330k/weatherpulse.git
+cd weatherpulse
 
 # Start all containers in detached mode
 docker compose up -d
