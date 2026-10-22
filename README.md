@@ -303,38 +303,38 @@ All endpoints support both `/` and `/api/` route prefixes:
 
 ```
 kafka-spark-cassandra/
-├── frontend/                    # React 18 + Vite + TypeScript application
+├── frontend/                    
 │   ├── src/
-│   │   ├── components/          # MapContainer, WeatherDashboard, SearchBar
-│   │   ├── hooks/               # useWeather, useGeocode React Query hooks
-│   │   ├── services/            # mapUtils.ts (ESRI basemap, 3D styles), api.ts
-│   │   ├── store/               # useAppStore.ts (Zustand state)
-│   │   └── types/               # TypeScript interfaces
-│   ├── nginx.conf               # Production Nginx reverse proxy configuration
-│   ├── Dockerfile               # Multi-stage frontend container build
-│   └── README.md                # Dedicated frontend documentation
+│   │   ├── components/         
+│   │   ├── hooks/              
+│   │   ├── services/            
+│   │   ├── store/              
+│   │   └── types/            
+│   ├── nginx.conf           
+│   ├── Dockerfile              
+│   └── README.md           
 │
-├── backend/                     # FastAPI REST API service
+├── backend/                    
 │   ├── app/
-│   │   ├── routers/             # health, geocode, weather, india, cassandra
-│   │   ├── services/            # open_meteo.py, cassandra_client.py, cache.py
-│   │   ├── models/              # Pydantic schemas (weather.py, location.py)
-│   │   └── main.py              # Application factory & lifespan handlers
-│   ├── Dockerfile               # Optimized Python 3.11-slim container
-│   ├── requirements.txt         # Production backend dependencies
-│   └── README.md                # Dedicated backend documentation
+│   │   ├── routers/          
+│   │   ├── services/          
+│   │   ├── models/            
+│   │   └── main.py           
+│   ├── Dockerfile           
+│   ├── requirements.txt        
+│   └── README.md              
 │
-├── dags/                        # Apache Airflow orchestration
-│   ├── kafka_stream.py          # Weather telemetry generator DAG
-│   └── README.md                # Airflow DAG documentation
+├── dags/                     
+│   ├── kafka_stream.py      
+│   └── README.md               
 │
 ├── script/
-│   └── entrypoint.sh            # Airflow container initialization script
+│   └── entrypoint.sh          
 │
-├── spark_stream.py              # PySpark Structured Streaming consumer job
-├── docker-compose.yml           # Full multi-container stack definition
-├── RUN_COMMANDS.md              # Quick-run command guide
-└── README.md                    # Master documentation (this file)
+├── spark_stream.py            
+├── docker-compose.yml         
+├── RUN_COMMANDS.md            
+└── README.md                
 ```
 
 ---
