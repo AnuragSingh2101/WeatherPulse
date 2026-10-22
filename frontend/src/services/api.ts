@@ -23,6 +23,29 @@ class ApiError extends Error {
   }
 }
 
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+}
+
+function camelizeKeys<T>(obj: any): T {
+  if (Array.isArray(obj)) {
+    return obj.map((v) => camelizeKeys(v)) as any;
+  }
+  if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+    const n: any = {};
+    for (const key of Object.keys(obj)) {
+      const camelKey = toCamelCase(key);
+      const val = camelizeKeys(obj[key]);
+      n[camelKey] = val;
+      if (camelKey !== key) {
+        n[key] = val;
+      }
+    }
+    return n;
+  }
+  return obj;
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -37,7 +60,8 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     throw new ApiError(response.status, error.message || `HTTP ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return camelizeKeys<T>(data);
 }
 
 // Geocoding

@@ -94,25 +94,25 @@ function HourlyForecastView({ data }: { data: HourlyForecast[] }) {
                   {formatHour(hour.time)}
                 </td>
                 <td className="py-2 px-3 text-white tabular-nums">
-                  {Math.round(hour.temperature)}°
+                  {Math.round(hour.temperature ?? 0)}°
                 </td>
                 <td className="py-2 px-3 text-dark-300 tabular-nums">
-                  {Math.round(hour.feelsLike)}°
+                  {Math.round(hour.feelsLike ?? (hour as any).feels_like ?? hour.temperature ?? 0)}°
                 </td>
                 <td className="py-2 px-3 flex items-center gap-2">
-                  {getWeatherIcon(hour.weatherCode)}
-                  <span className="text-dark-300 capitalize">{hour.weatherDescription}</span>
+                  {getWeatherIcon(hour.weatherCode ?? 0)}
+                  <span className="text-dark-300 capitalize">{hour.weatherDescription ?? 'Fair'}</span>
                 </td>
                 <td className="py-2 px-3 flex items-center gap-1 text-blue-400">
                   <Droplets className="w-3.5 h-3.5" />
-                  <span>{hour.precipitation.toFixed(1)}mm ({hour.precipitationProbability}%)</span>
+                  <span>{(hour.precipitation ?? 0).toFixed(1)}mm ({hour.precipitationProbability ?? 0}%)</span>
                 </td>
                 <td className="py-2 px-3 text-dark-300">
-                  {hour.humidity}%
+                  {hour.humidity ?? 50}%
                 </td>
                 <td className="py-2 px-3 flex items-center gap-1 text-green-400">
                   <Wind className="w-3.5 h-3.5" />
-                  <span>{hour.windSpeed} km/h {hour.windDirectionText}</span>
+                  <span>{Math.round(hour.windSpeed ?? 0)} km/h {hour.windDirectionText ?? 'N'}</span>
                 </td>
               </tr>
             ))}
@@ -168,17 +168,17 @@ function DailyForecastCard({ data }: { data: DailyForecast }) {
 
         <div className="flex items-center gap-6 text-right min-w-[200px]">
           <div className="flex flex-col items-end">
-            <span className="text-2xl font-bold text-white tabular-nums">{Math.round(data.temperatureMax)}°</span>
-            <span className="text-dark-400 text-sm">/{Math.round(data.temperatureMin)}°</span>
+            <span className="text-2xl font-bold text-white tabular-nums">{Math.round(data.temperatureMax ?? (data as any).temperature_max ?? 0)}°</span>
+            <span className="text-dark-400 text-sm">/{Math.round(data.temperatureMin ?? (data as any).temperature_min ?? 0)}°</span>
           </div>
           <div className="flex flex-col items-end gap-1 text-xs text-dark-400">
             <div className="flex items-center gap-1">
-              <Droplets className="w-3 h-3" />
-              <span>{data.precipitationSum.toFixed(1)}mm ({data.precipitationProbabilityMax}%)</span>
+              <Droplets className="w-3 h-3 text-blue-400" />
+              <span>{((data.precipitationSum ?? (data as any).precipitation_sum ?? 0)).toFixed(1)}mm ({data.precipitationProbabilityMax ?? (data as any).precipitation_probability_max ?? 0}%)</span>
             </div>
             <div className="flex items-center gap-1">
-              <Wind className="w-3 h-3" />
-              <span>{data.windSpeedMax} km/h</span>
+              <Wind className="w-3 h-3 text-emerald-400" />
+              <span>{Math.round(data.windSpeedMax ?? (data as any).wind_speed_max ?? 0)} km/h</span>
             </div>
           </div>
         </div>

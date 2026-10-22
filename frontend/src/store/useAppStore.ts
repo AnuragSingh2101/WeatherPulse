@@ -42,11 +42,21 @@ export const useAppStore = create<AppState>((set) => ({
     })),
 
   setSelectedLocation: (location, name) =>
-    set({
+    set((state) => ({
       selectedLocation: location,
       selectedLocationName: name ?? null,
       isDashboardOpen: location !== null,
-    }),
+      navigationLevel: location !== null ? 'city' : state.navigationLevel,
+      viewport: location
+        ? {
+            ...state.viewport,
+            center: location,
+            zoom: 10,
+            bearing: 15,
+            pitch: 45,
+          }
+        : state.viewport,
+    })),
 
   setNavigationLevel: (level) =>
     set({ navigationLevel: level }),
@@ -69,7 +79,7 @@ export const useAppStore = create<AppState>((set) => ({
     set({ searchQuery: query }),
 
   setSearchResults: (results) =>
-    set({ searchResults: results, isSearchOpen: results.length > 0 }),
+    set((state) => (state.searchResults === results ? state : { searchResults: results, isSearchOpen: results.length > 0 })),
 
   setWeatherData: (data) =>
     set({ weatherData: data }),
@@ -86,6 +96,9 @@ export const useAppStore = create<AppState>((set) => ({
       navigationLevel: 'india',
       selectedState: null,
       selectedDistrict: null,
+      selectedLocation: null,
+      selectedLocationName: null,
+      isDashboardOpen: false,
     }),
 
   reset: () => set(initialState),

@@ -3,34 +3,49 @@ import { useQuery } from 'react-query';
 import { geocode, type GeocodeResult } from '../services/api';
 
 export function useGeocode(query: string, enabled = true) {
+  const trimmed = (query || '').trim();
   return useQuery<GeocodeResult[]>(
-    ['geocode', query],
-    () => geocode(query),
+    ['geocode', trimmed],
+    () => geocode(trimmed),
     {
-      enabled: enabled && query.length >= 2,
+      enabled: enabled && trimmed.length >= 1,
       staleTime: 5 * 60 * 1000,
       cacheTime: 10 * 60 * 1000,
       retry: 1,
+      keepPreviousData: false,
     }
   );
 }
 
-// Debounced search hook
+const EMPTY_RESULTS: GeocodeResult[] = [];
+
+// Debounced search hook with instant search support
 export function useSearchLocations(initialQuery = '') {
   const [query, setQuery] = useState(initialQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
 
   useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setDebouncedQuery('');
+      return;
+    }
     const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 300);
+      setDebouncedQuery(trimmed);
+    }, 250);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data: results, isLoading, error, refetch } = useGeocode(debouncedQuery);
+  const { data: results, isLoading, isFetching, error, refetch } = useGeocode(debouncedQuery);
 
   const search = useCallback((newQuery: string) => {
     setQuery(newQuery);
+  }, []);
+
+  const searchImmediate = useCallback((newQuery: string) => {
+    const trimmed = newQuery.trim();
+    setQuery(trimmed);
+    setDebouncedQuery(trimmed);
   }, []);
 
   const clear = useCallback(() => {
@@ -41,10 +56,11 @@ export function useSearchLocations(initialQuery = '') {
   return {
     query,
     debouncedQuery,
-    results: results || [],
-    isLoading,
+    results: results ?? EMPTY_RESULTS,
+    isLoading: isLoading || isFetching,
     error,
     search,
+    searchImmediate,
     clear,
     refetch,
   };

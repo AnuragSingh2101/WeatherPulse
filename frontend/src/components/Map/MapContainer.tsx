@@ -274,15 +274,18 @@ export function MapContainer({ onMapLoad, onMapClick }: MapContainerProps) {
     const currentCenter = map.getCenter();
     const targetCenter: [number, number] = [viewport.center.lon, viewport.center.lat];
 
-    // Only animate if significant difference
+    // Animate if center, zoom, or pitch changed
     const distance = Math.hypot(currentCenter.lng - targetCenter[0], currentCenter.lat - targetCenter[1]);
-    if (distance > 0.01) {
+    const zoomDiff = Math.abs(map.getZoom() - viewport.zoom);
+    const pitchDiff = Math.abs(map.getPitch() - viewport.pitch);
+    if (distance > 0.005 || zoomDiff > 0.3 || pitchDiff > 5) {
       map.flyTo({
         center: targetCenter,
         zoom: viewport.zoom,
         bearing: viewport.bearing,
         pitch: viewport.pitch,
         duration: 1500,
+        essential: true,
       });
     }
   }, [viewport]);

@@ -22,22 +22,39 @@ class OpenMeteoClient:
 
     # Geocoding
     async def geocode(self, query: str, limit: int = 10, country: str = "IN") -> List[GeocodeResult]:
-        """Search for locations using Open-Meteo geocoding API"""
+        """Search for locations using Open-Meteo geocoding API, prioritizing Indian results"""
+        clean_query = (query or "").strip()
+        if not clean_query:
+            return []
+
+        # Request more results to account for filtering and country prioritization
         params = {
-            "name": query,
-            "count": limit,
+            "name": clean_query,
+            "count": max(limit * 3, 30),
             "language": "en",
             "format": "json",
-            "country": country,
         }
         try:
             response = await self.client.get(f"{self.geocoding_url}/search", params=params)
             response.raise_for_status()
             data = response.json()
-            results = data.get("results", [])
-            return [GeocodeResult(**r) for r in results]
+            raw_results = data.get("results", [])
+
+            # Separate Indian results and other results
+            india_results = [
+                r for r in raw_results
+                if (r.get("country_code") or "").upper() == "IN" or (r.get("country") or "").lower() == "india"
+            ]
+            other_results = [
+                r for r in raw_results
+                if r not in india_results
+            ]
+
+            # Prioritize Indian results
+            combined = india_results + (other_results if country != "IN" or not india_results else [])
+            return [GeocodeResult(**r) for r in combined[:limit]]
         except Exception as e:
-            logger.error(f"Geocoding error for '{query}': {e}")
+            logger.error(f"Geocoding error for '{clean_query}': {e}")
             return []
 
     async def reverse_geocode(self, lat: float, lon: float, limit: int = 1) -> List[GeocodeResult]:

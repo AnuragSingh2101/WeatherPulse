@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, RefreshCw, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, RefreshCw, Loader2, AlertTriangle, Info, Download } from 'lucide-react';
 import { useAppStore, useIsDashboardOpen, useSelectedLocationName, useSelectedLocation, useWeatherData } from '../../store/useAppStore';
 import { useDashboardData } from '../../hooks/useWeather';
 import { CurrentConditions } from './CurrentConditions';
@@ -34,9 +34,45 @@ export function WeatherDashboard() {
     return () => window.removeEventListener('refresh-weather', handleRefresh);
   }, [refetch]);
 
+  const weatherData = fetchedData || storeWeatherData;
+
+  const exportWeatherData = (format: 'csv' | 'json') => {
+    if (!weatherData) return;
+    const loc = (locationName || 'location').replace(/[^a-zA-Z0-9]/g, '_');
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(weatherData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WeatherPulse_${loc}_${timestamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const headers = ['Time', 'Temperature_C', 'FeelsLike_C', 'Humidity_pct', 'WindSpeed_kmh', 'Condition', 'Precipitation_mm'];
+      const rows = (weatherData.hourly || []).map((h) => [
+        h.time,
+        h.temperature,
+        h.feelsLike ?? (h as any).feels_like ?? h.temperature,
+        h.humidity,
+        h.windSpeed ?? (h as any).wind_speed ?? 0,
+        `"${h.weatherDescription ?? (h as any).weather_description ?? 'Fair'}"`,
+        h.precipitation ?? 0,
+      ]);
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WeatherPulse_${loc}_Hourly_${timestamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const weatherData = fetchedData || storeWeatherData;
   const isActuallyLoading = isLoading && !weatherData;
 
   const tabs = [
@@ -70,20 +106,34 @@ export function WeatherDashboard() {
               <p className="text-dark-400 text-sm truncate">Live weather & historical analytics</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Export CSV Button */}
+            {weatherData && (
+              <button
+                onClick={() => exportWeatherData('csv')}
+                className="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-cyan-300 border border-white/5 transition-all flex items-center gap-1.5 text-xs font-medium"
+                title="Export 48h Hourly Forecast to CSV"
+                aria-label="Export to CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
+            )}
             <button
               onClick={() => refetch()}
               className="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white transition-colors"
               aria-label="Refresh weather data"
+              title="Refresh Telemetry"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={() => closeDashboard(false)}
               className="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-white transition-colors"
               aria-label="Close dashboard"
+              title="Close Panel"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
