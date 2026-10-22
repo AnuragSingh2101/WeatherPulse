@@ -3,6 +3,7 @@ services:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
     container_name: zookeeper
+    profiles: ["full"]
     ports:
       - "2181:2181"
     environment:
@@ -20,6 +21,7 @@ services:
     image: confluentinc/cp-server:7.4.0
     hostname: broker
     container_name: broker
+    profiles: ["full"]
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -58,6 +60,7 @@ services:
     image: confluentinc/cp-schema-registry:7.4.0
     hostname: schema-registry
     container_name: schema-registry
+    profiles: ["full"]
     depends_on:
       broker:
         condition: service_healthy
@@ -79,6 +82,7 @@ services:
     image: confluentinc/cp-enterprise-control-center:7.4.0
     hostname: control-center
     container_name: control-center
+    profiles: ["full"]
     depends_on:
       broker:
         condition: service_healthy
@@ -106,6 +110,7 @@ services:
   postgres:
     image: postgres:14.0
     container_name: postgres
+    profiles: ["full"]
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -127,6 +132,7 @@ services:
   webserver:
     image: apache/airflow:2.7.0-python3.9
     container_name: airflow-webserver
+    profiles: ["full"]
     command: ["webserver"]
     entrypoint: ["/bin/bash", "/opt/airflow/script/entrypoint.sh"]
     depends_on:
@@ -160,6 +166,7 @@ services:
   scheduler:
     image: apache/airflow:2.7.0-python3.9
     container_name: airflow-scheduler
+    profiles: ["full"]
     depends_on:
       webserver:
         condition: service_healthy
@@ -185,6 +192,7 @@ services:
     image: apache/spark:3.4.1-python3
     hostname: spark-master
     container_name: spark-master
+    profiles: ["full"]
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
     ports:
       - "9090:8080"
@@ -196,6 +204,7 @@ services:
     image: apache/spark:3.4.1-python3
     hostname: spark-worker
     container_name: spark-worker
+    profiles: ["full"]
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "--cores", "4", "--memory", "2g", "spark://spark-master:7077"]
     depends_on:
       - spark-master
@@ -206,6 +215,7 @@ services:
     image: cassandra:4.1
     hostname: cassandra
     container_name: cassandra
+    profiles: ["full"]
     ports:
       - "9042:9042"
     environment:
@@ -243,6 +253,7 @@ services:
     image: apache/spark:3.4.1-python3
     hostname: spark-streaming
     container_name: spark-streaming
+    profiles: ["full"]
     depends_on:
       spark-master:
         condition: service_started
@@ -286,8 +297,6 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
     depends_on:
-      cassandra_db:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -307,7 +316,6 @@ services:
       dockerfile: Dockerfile
     container_name: weather-frontend
     ports:
-      - "3000:3000"
       - "5173:3000"
     environment:
       - VITE_API_URL=http://localhost:8000

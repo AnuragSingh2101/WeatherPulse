@@ -223,6 +223,8 @@ export interface DistrictWeatherSummary {
   alertLevel: 'none' | 'low' | 'moderate' | 'high' | 'extreme';
 }
 
+export type WeatherLayer = 'temperature' | 'precipitation' | 'wind' | 'alerts';
+
 // Store Types
 export interface AppState {
   // Map state
@@ -232,6 +234,7 @@ export interface AppState {
   navigationLevel: 'india' | 'state' | 'district' | 'city';
   selectedState: string | null;
   selectedDistrict: string | null;
+  activeLayer: WeatherLayer;
 
   // UI state
   isDashboardOpen: boolean;
@@ -250,6 +253,7 @@ export interface AppState {
   setNavigationLevel: (level: 'india' | 'state' | 'district' | 'city') => void;
   setSelectedState: (stateCode: string | null) => void;
   setSelectedDistrict: (districtCode: string | null) => void;
+  setActiveLayer: (layer: WeatherLayer) => void;
   toggleDashboard: (open?: boolean) => void;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: GeocodeResult[]) => void;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import maplibregl, { Map, LngLatLike, MapMouseEvent, GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useAppStore, useViewport, useSelectedLocation, useNavigationLevel, useSelectedState, useWeatherData, useIndiaOverview, useStateDistricts } from '../../store/useAppStore';
+import { useAppStore, useViewport, useSelectedLocation, useNavigationLevel, useSelectedState, useWeatherData, useIndiaOverview, useStateDistricts, useActiveLayer } from '../../store/useAppStore';
 import type { Coordinates, MapViewport } from '../../types';
 import type { LayerSpecification } from 'maplibre-gl';
 import {
@@ -10,6 +10,7 @@ import {
   createWeatherMarkerLayers,
   createSelectedLocationLayer,
   createSelectedLocationPulseLayer,
+  getLayerPaintExpressions,
   MAP_STYLE,
   getStateBounds,
 } from '../../services/mapUtils';
@@ -33,6 +34,7 @@ export function MapContainer({ onMapLoad, onMapClick }: MapContainerProps) {
   const selectedLocation = useSelectedLocation();
   const navigationLevel = useNavigationLevel();
   const selectedState = useSelectedState();
+  const activeLayer = useActiveLayer();
   const setViewport = useAppStore((state) => state.setViewport);
   const setSelectedLocation = useAppStore((state) => state.setSelectedLocation);
 
@@ -367,7 +369,7 @@ export function MapContainer({ onMapLoad, onMapClick }: MapContainerProps) {
     }
   }, [selectedLocation]);
 
-  // Update state polygons with temperature data
+  // Update state polygons with meteorological data
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded.current) return;
@@ -387,13 +389,27 @@ export function MapContainer({ onMapLoad, onMapClick }: MapContainerProps) {
           ...feature.properties,
           temperature: stateData?.current?.temperature ?? 25,
           humidity: stateData?.current?.humidity ?? 60,
-          alertLevel: stateData?.alertLevel ?? 'none',
+          precipitation: stateData?.current?.precipitation ?? 0,
+          windSpeed: stateData?.current?.windSpeed ?? (stateData?.current as any)?.wind_speed ?? 12,
+          alertLevel: stateData?.alertLevel ?? (stateData as any)?.alert_level ?? 'none',
         },
       };
     });
 
     source.setData({ type: 'FeatureCollection', features: updatedFeatures });
   }, [indiaOverview]);
+
+  // Update extrusion paint properties dynamically when active layer changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded.current) return;
+
+    if (map.getLayer('states-fill-extrusion')) {
+      const expressions = getLayerPaintExpressions(activeLayer);
+      map.setPaintProperty('states-fill-extrusion', 'fill-extrusion-color', expressions.color as any);
+      map.setPaintProperty('states-fill-extrusion', 'fill-extrusion-height', expressions.height as any);
+    }
+  }, [activeLayer]);
 
   // Update district polygons with temperature data
   useEffect(() => {

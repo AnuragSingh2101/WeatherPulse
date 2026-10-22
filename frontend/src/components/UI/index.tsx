@@ -85,3 +85,5 @@ export function Card({ children, className = '', padding = 'p-4' }: { children: 
 export function Divider({ className = '' }: { className?: string }) {
   return <hr className={`border-dark-700/50 ${className}`} />;
 }
+
+export { LayerSwitcher } from './LayerSwitcher';

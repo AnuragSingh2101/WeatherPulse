@@ -12,6 +12,8 @@
 
 A distributed, end-to-end real-time Big Data and geospatial analytics platform. The system ingests and processes high-velocity meteorological streams using **Apache Kafka** and **Apache Spark Structured Streaming**, persists time-series observations in **Apache Cassandra**, and serves high-performance APIs via **FastAPI** to an interactive **3D WebGL weather map of India** powered by **MapLibre GL JS** and **React**.
 
+> ⚡ **Quick Run**: See [RUN_COMMANDS.md](RUN_COMMANDS.md) for copy-paste ready commands to launch the application with Docker or locally.
+
 ---
 
 ## 📑 Table of Contents

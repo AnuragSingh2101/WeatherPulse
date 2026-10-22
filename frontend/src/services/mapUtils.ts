@@ -1,5 +1,4 @@
-// Map utility functions
-import type { Coordinates, BoundingBox } from '../types';
+import type { Coordinates, BoundingBox, WeatherLayer } from '../types';
 import type { LayerSpecification } from 'maplibre-gl';
 
 // State bounds data
@@ -44,14 +43,78 @@ export const STATE_BOUNDS: Record<string, { center: Coordinates; minLat: number;
 };
 
 // Convert GeoJSON to MapLibre style layers
-export function createStateLayers(geojson: GeoJSON.FeatureCollection): LayerSpecification[] {
-  return [
-    {
-      id: 'states-fill-extrusion',
-      type: 'fill-extrusion',
-      source: 'states',
-      paint: {
-        'fill-extrusion-color': [
+export function getLayerPaintExpressions(layer: WeatherLayer = 'temperature') {
+  switch (layer) {
+    case 'precipitation':
+      return {
+        color: [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'precipitation'], 0],
+          0, '#0f172a',
+          2, '#38bdf8',
+          10, '#0284c7',
+          25, '#2563eb',
+          50, '#4338ca',
+          100, '#6b21a8',
+        ],
+        height: [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'precipitation'], 0],
+          0, 20000,
+          10, 60000,
+          30, 140000,
+          100, 280000,
+        ],
+      };
+    case 'wind':
+      return {
+        color: [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'windSpeed'], 5],
+          0, '#06b6d4',
+          15, '#10b981',
+          35, '#f59e0b',
+          60, '#ea580c',
+          90, '#dc2626',
+        ],
+        height: [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'windSpeed'], 5],
+          0, 20000,
+          20, 70000,
+          50, 160000,
+          100, 260000,
+        ],
+      };
+    case 'alerts':
+      return {
+        color: [
+          'match',
+          ['coalesce', ['get', 'alertLevel'], 'none'],
+          'extreme', '#dc2626',
+          'high', '#ea580c',
+          'moderate', '#d97706',
+          'low', '#eab308',
+          '#1e293b',
+        ],
+        height: [
+          'match',
+          ['coalesce', ['get', 'alertLevel'], 'none'],
+          'extreme', 260000,
+          'high', 190000,
+          'moderate', 120000,
+          'low', 70000,
+          20000,
+        ],
+      };
+    case 'temperature':
+    default:
+      return {
+        color: [
           'interpolate',
           ['linear'],
           ['coalesce', ['get', 'temperature'], 25],
@@ -65,20 +128,34 @@ export function createStateLayers(geojson: GeoJSON.FeatureCollection): LayerSpec
           40, '#f44336',    // Very hot - red
           45, '#b71c1c',    // Extreme - dark red
         ],
-        'fill-extrusion-height': [
+        height: [
           'interpolate',
           ['linear'],
           ['coalesce', ['get', 'temperature'], 25],
-          -10, 50000,
-          0, 80000,
-          10, 100000,
-          20, 120000,
-          25, 150000,
-          30, 180000,
+          -10, 40000,
+          0, 60000,
+          10, 80000,
+          20, 110000,
+          25, 140000,
+          30, 170000,
           35, 200000,
-          40, 250000,
-          45, 300000,
+          40, 240000,
+          45, 290000,
         ],
+      };
+  }
+}
+
+export function createStateLayers(geojson: GeoJSON.FeatureCollection, layer: WeatherLayer = 'temperature'): LayerSpecification[] {
+  const expressions = getLayerPaintExpressions(layer);
+  return [
+    {
+      id: 'states-fill-extrusion',
+      type: 'fill-extrusion',
+      source: 'states',
+      paint: {
+        'fill-extrusion-color': expressions.color as any,
+        'fill-extrusion-height': expressions.height as any,
         'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 0.7,
       },

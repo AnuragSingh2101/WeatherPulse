@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import List, Optional
 from datetime import datetime
+import asyncio
 from app.models.weather import (
     IndiaOverviewResponse, StateWeatherSummary, DistrictWeatherSummary,
     CurrentWeather, Coordinates, WeatherSource
@@ -91,22 +92,90 @@ STATE_BOUNDS = {
     "WB": {"minLat": 21.5, "maxLat": 27.2, "minLon": 85.8, "maxLon": 89.8},
 }
 
+# Major district centroids for key Indian states to support Level 2 (State -> District) drilldown
+DISTRICTS_BY_STATE = {
+    "MH": [
+        {"code": "MH-PUN", "name": "Pune", "lat": 18.5204, "lon": 73.8567},
+        {"code": "MH-MUM", "name": "Mumbai", "lat": 19.0760, "lon": 72.8777},
+        {"code": "MH-NAG", "name": "Nagpur", "lat": 21.1458, "lon": 79.0882},
+        {"code": "MH-NAS", "name": "Nashik", "lat": 19.9975, "lon": 73.7898},
+        {"code": "MH-AUR", "name": "Chhatrapati Sambhajinagar", "lat": 19.8762, "lon": 75.3433},
+        {"code": "MH-THA", "name": "Thane", "lat": 19.2183, "lon": 72.9781},
+    ],
+    "KA": [
+        {"code": "KA-BLR", "name": "Bengaluru Urban", "lat": 12.9716, "lon": 77.5946},
+        {"code": "KA-MYS", "name": "Mysuru", "lat": 12.2958, "lon": 76.6394},
+        {"code": "KA-HUB", "name": "Dharwad (Hubballi)", "lat": 15.3647, "lon": 75.1240},
+        {"code": "KA-MAN", "name": "Dakshina Kannada (Mangaluru)", "lat": 12.9141, "lon": 74.8560},
+        {"code": "KA-BEL", "name": "Belagavi", "lat": 15.8497, "lon": 74.4977},
+    ],
+    "DL": [
+        {"code": "DL-NDL", "name": "New Delhi", "lat": 28.6139, "lon": 77.2090},
+        {"code": "DL-SDL", "name": "South Delhi", "lat": 28.5355, "lon": 77.2100},
+        {"code": "DL-EDL", "name": "East Delhi", "lat": 28.6277, "lon": 77.2789},
+        {"code": "DL-WDL", "name": "West Delhi", "lat": 28.6517, "lon": 77.1000},
+    ],
+    "TN": [
+        {"code": "TN-CHE", "name": "Chennai", "lat": 13.0827, "lon": 80.2707},
+        {"code": "TN-COI", "name": "Coimbatore", "lat": 11.0168, "lon": 76.9558},
+        {"code": "TN-MAD", "name": "Madurai", "lat": 9.9252, "lon": 78.1198},
+        {"code": "TN-TRI", "name": "Tiruchirappalli", "lat": 10.7905, "lon": 78.7047},
+    ],
+    "WB": [
+        {"code": "WB-KOL", "name": "Kolkata", "lat": 22.5726, "lon": 88.3639},
+        {"code": "WB-DAR", "name": "Darjeeling", "lat": 27.0410, "lon": 88.2663},
+        {"code": "WB-HOW", "name": "Howrah", "lat": 22.5958, "lon": 88.2636},
+        {"code": "WB-SIL", "name": "Siliguri", "lat": 26.7271, "lon": 88.3953},
+    ],
+    "UP": [
+        {"code": "UP-LKO", "name": "Lucknow", "lat": 26.8467, "lon": 80.9462},
+        {"code": "UP-KAN", "name": "Kanpur", "lat": 26.4499, "lon": 80.3319},
+        {"code": "UP-VAR", "name": "Varanasi", "lat": 25.3176, "lon": 82.9739},
+        {"code": "UP-AGR", "name": "Agra", "lat": 27.1767, "lon": 78.0081},
+        {"code": "UP-NOI", "name": "Gautam Buddha Nagar (Noida)", "lat": 28.5355, "lon": 77.3910},
+    ],
+    "GJ": [
+        {"code": "GJ-AHM", "name": "Ahmedabad", "lat": 23.0225, "lon": 72.5714},
+        {"code": "GJ-SUR", "name": "Surat", "lat": 21.1702, "lon": 72.8311},
+        {"code": "GJ-VAD", "name": "Vadodara", "lat": 22.3072, "lon": 73.1812},
+        {"code": "GJ-RAJ", "name": "Rajkot", "lat": 22.3039, "lon": 70.8022},
+    ],
+    "RJ": [
+        {"code": "RJ-JAI", "name": "Jaipur", "lat": 26.9124, "lon": 75.7873},
+        {"code": "RJ-JOD", "name": "Jodhpur", "lat": 26.2389, "lon": 73.0243},
+        {"code": "RJ-UDA", "name": "Udaipur", "lat": 24.5854, "lon": 73.7125},
+        {"code": "RJ-KOT", "name": "Kota", "lat": 25.2138, "lon": 75.8648},
+    ],
+    "TS": [
+        {"code": "TS-HYD", "name": "Hyderabad", "lat": 17.3850, "lon": 78.4867},
+        {"code": "TS-WAR", "name": "Warangal", "lat": 17.9689, "lon": 79.5941},
+        {"code": "TS-NIZ", "name": "Nizamabad", "lat": 18.6725, "lon": 78.0941},
+    ],
+    "KL": [
+        {"code": "KL-TVM", "name": "Thiruvananthapuram", "lat": 8.5241, "lon": 76.9366},
+        {"code": "KL-COK", "name": "Ernakulam (Kochi)", "lat": 9.9312, "lon": 76.2673},
+        {"code": "KL-KOZ", "name": "Kozhikode", "lat": 11.2588, "lon": 75.7804},
+    ],
+}
+
+def calculate_alert_level(current: CurrentWeather) -> str:
+    if current.temperature >= 45 or current.precipitation >= 100:
+        return "extreme"
+    elif current.temperature >= 40 or current.precipitation >= 50 or current.wind_speed >= 80:
+        return "high"
+    elif current.temperature >= 35 or current.precipitation >= 25 or current.wind_speed >= 50:
+        return "moderate"
+    elif current.temperature >= 30 or current.precipitation >= 10 or current.wind_speed >= 30:
+        return "low"
+    return "none"
+
 async def fetch_state_weather(state: dict) -> StateWeatherSummary:
     """Fetch current weather for a state's center point"""
     client = await get_open_meteo_client()
     try:
         current = await client.get_current_weather(state["center"]["lat"], state["center"]["lon"])
-        
-        # Determine alert level based on current conditions
-        alert_level = "none"
-        if current.temperature >= 45 or current.precipitation >= 100:
-            alert_level = "extreme"
-        elif current.temperature >= 40 or current.precipitation >= 50 or current.wind_speed >= 90:
-            alert_level = "high"
-        elif current.temperature >= 35 or current.precipitation >= 25 or current.wind_speed >= 60:
-            alert_level = "moderate"
-        elif current.temperature >= 30 or current.precipitation >= 10 or current.wind_speed >= 30:
-            alert_level = "low"
+        alert_level = calculate_alert_level(current)
+        districts = DISTRICTS_BY_STATE.get(state["code"], [])
         
         return StateWeatherSummary(
             code=state["code"],
@@ -115,10 +184,10 @@ async def fetch_state_weather(state: dict) -> StateWeatherSummary:
             bounds=STATE_BOUNDS.get(state["code"], {}),
             current=current,
             alert_level=alert_level,
-            district_count=0,  # Would need district data
+            district_count=len(districts) if districts else 1,
         )
-    except Exception as e:
-        # Return state without weather data on error
+    except Exception:
+        districts = DISTRICTS_BY_STATE.get(state["code"], [])
         return StateWeatherSummary(
             code=state["code"],
             name=state["name"],
@@ -126,7 +195,7 @@ async def fetch_state_weather(state: dict) -> StateWeatherSummary:
             bounds=STATE_BOUNDS.get(state["code"], {}),
             current=None,
             alert_level="none",
-            district_count=0,
+            district_count=len(districts) if districts else 1,
         )
 
 @router.get("/overview", response_model=IndiaOverviewResponse)
@@ -141,12 +210,10 @@ async def get_india_overview():
         return IndiaOverviewResponse(**cached)
     
     # Fetch weather for all states in parallel
-    import asyncio
     state_weathers = await asyncio.gather(*[
         fetch_state_weather(state) for state in INDIAN_STATES
     ])
     
-    # Calculate national averages
     valid_states = [s for s in state_weathers if s.current is not None]
     avg_temp = sum(s.current.temperature for s in valid_states) / len(valid_states) if valid_states else 0
     avg_humidity = sum(s.current.humidity for s in valid_states) / len(valid_states) if valid_states else 0
@@ -164,7 +231,7 @@ async def get_india_overview():
         timestamp=datetime.now(),
     )
     
-    await cache.set(cache_key, overview.model_dump(), 300)  # 5 min cache
+    await cache.set(cache_key, overview.model_dump(), 300)
     return overview
 
 @router.get("/state/{state_code}", response_model=StateWeatherSummary)
@@ -185,9 +252,50 @@ async def get_state_districts(state_code: str):
     if not state:
         raise HTTPException(status_code=404, detail=f"State {state_code} not found")
     
-    # This would need actual district data - returning empty for now
-    # In production, load from district GeoJSON and fetch weather for each
-    return []
+    cache = await get_cache_service()
+    cache_key = f"india:districts:{state_code}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return [DistrictWeatherSummary(**d) for d in cached]
+
+    districts = DISTRICTS_BY_STATE.get(state_code)
+    # If explicit district list isn't defined, create a default district around the capital/center
+    if not districts:
+        districts = [{
+            "code": f"{state_code}-01",
+            "name": f"{state['name']} District",
+            "lat": state["center"]["lat"],
+            "lon": state["center"]["lon"]
+        }]
+
+    client = await get_open_meteo_client()
+
+    async def fetch_district_weather(dist: dict) -> DistrictWeatherSummary:
+        try:
+            curr = await client.get_current_weather(dist["lat"], dist["lon"])
+            alert = calculate_alert_level(curr)
+        except Exception:
+            curr = None
+            alert = "none"
+
+        return DistrictWeatherSummary(
+            code=dist["code"],
+            name=dist["name"],
+            state_code=state_code,
+            center=Coordinates(lat=dist["lat"], lon=dist["lon"]),
+            bounds={
+                "minLat": dist["lat"] - 0.3,
+                "maxLat": dist["lat"] + 0.3,
+                "minLon": dist["lon"] - 0.3,
+                "maxLon": dist["lon"] + 0.3,
+            },
+            current=curr,
+            alert_level=alert,
+        )
+
+    results = await asyncio.gather(*[fetch_district_weather(d) for d in districts])
+    await cache.set(cache_key, [r.model_dump() for r in results], 600)
+    return results
 
 @router.get("/states", response_model=List[dict])
 async def list_states():

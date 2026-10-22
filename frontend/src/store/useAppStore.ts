@@ -16,13 +16,14 @@ const DEFAULT_VIEWPORT: MapViewport = {
   pitch: 45,
 };
 
-const initialState: Omit<AppState, keyof Pick<AppState, 'setViewport' | 'setSelectedLocation' | 'setNavigationLevel' | 'setSelectedState' | 'setSelectedDistrict' | 'toggleDashboard' | 'setSearchQuery' | 'setSearchResults' | 'setWeatherData' | 'setIndiaOverview' | 'setStateDistricts' | 'reset' | 'flyToIndia'>> = {
+const initialState: Omit<AppState, keyof Pick<AppState, 'setViewport' | 'setSelectedLocation' | 'setNavigationLevel' | 'setSelectedState' | 'setSelectedDistrict' | 'setActiveLayer' | 'toggleDashboard' | 'setSearchQuery' | 'setSearchResults' | 'setWeatherData' | 'setIndiaOverview' | 'setStateDistricts' | 'reset' | 'flyToIndia'>> = {
   viewport: DEFAULT_VIEWPORT,
   selectedLocation: null,
   selectedLocationName: null,
   navigationLevel: 'india',
   selectedState: null,
   selectedDistrict: null,
+  activeLayer: 'temperature',
   isDashboardOpen: false,
   isSearchOpen: false,
   searchQuery: '',
@@ -55,6 +56,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   setSelectedDistrict: (districtCode) =>
     set({ selectedDistrict: districtCode }),
+
+  setActiveLayer: (layer) =>
+    set({ activeLayer: layer }),
 
   toggleDashboard: (open) =>
     set((state) => ({
@@ -94,6 +98,7 @@ export const useSelectedLocationName = () => useAppStore((state) => state.select
 export const useNavigationLevel = () => useAppStore((state) => state.navigationLevel);
 export const useSelectedState = () => useAppStore((state) => state.selectedState);
 export const useSelectedDistrict = () => useAppStore((state) => state.selectedDistrict);
+export const useActiveLayer = () => useAppStore((state) => state.activeLayer);
 export const useIsDashboardOpen = () => useAppStore((state) => state.isDashboardOpen);
 export const useWeatherData = () => useAppStore((state) => state.weatherData);
 export const useIndiaOverview = () => useAppStore((state) => state.indiaOverview);
