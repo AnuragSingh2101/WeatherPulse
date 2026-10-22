@@ -87,3 +87,6 @@ export function Divider({ className = '' }: { className?: string }) {
 }
 
 export { LayerSwitcher } from './LayerSwitcher';
+export { WeatherCompareModal } from './WeatherCompareModal';
+export { AlertAdvisoryModal } from './AlertAdvisoryModal';
+export { DemoTourController } from './DemoTourController';

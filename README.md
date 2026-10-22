@@ -333,7 +333,7 @@ kafka-spark-cassandra/
 │
 ├── spark_stream.py              # PySpark Structured Streaming consumer job
 ├── docker-compose.yml           # Full multi-container stack definition
-├── PROJECT_SPEC.md              # Technical design specification
+├── RUN_COMMANDS.md              # Quick-run command guide
 └── README.md                    # Master documentation (this file)
 ```
 
