@@ -99,37 +99,53 @@ class OpenMeteoClient:
         cw = data.get("current_weather", {})
         hourly = data.get("hourly", {})
         
-        # Find current hour index
+        # Find current hour index matching current time or nearest hour
         current_time = cw.get("time", datetime.now().isoformat())
         time_idx = 0
+        hourly_times = hourly.get("time", [])
         if "time" in hourly:
             try:
-                time_idx = hourly["time"].index(current_time)
+                time_idx = hourly_times.index(current_time)
             except ValueError:
-                time_idx = 0
+                now_prefix = datetime.utcnow().strftime("%Y-%m-%dT%H")
+                matching = [i for i, t in enumerate(hourly_times) if t.startswith(now_prefix)]
+                time_idx = matching[0] if matching else max(0, min(len(hourly_times) - 1, datetime.utcnow().hour))
 
         weather_code = cw.get("weather_code", 0)
+        raw_wind_speed = cw.get("windspeed") if cw.get("windspeed") is not None else cw.get("wind_speed", 0.0)
+        raw_wind_dir = cw.get("winddirection") if cw.get("winddirection") is not None else cw.get("wind_direction", 0.0)
+
+        # Get values safely from hourly arrays at time_idx
+        def get_val(key: str, default: Any) -> Any:
+            arr = hourly.get(key, [])
+            if arr and 0 <= time_idx < len(arr):
+                return arr[time_idx]
+            return default
+
+        humidity_val = get_val("relative_humidity_2m", 50)
+        precip_val = get_val("precipitation", 0.0)
+        pressure_val = get_val("surface_pressure", 1013.0)
+        cloud_val = get_val("cloud_cover", 0)
+        vis_val = get_val("visibility", 10000.0) / 1000.0
+        uv_val = get_val("uv_index", 0.0)
+
         return CurrentWeather(
-            temperature=cw.get("temperature", 0),
-            feels_like=self._calculate_feels_like(
-                cw.get("temperature", 0),
-                hourly.get("relative_humidity_2m", [50])[time_idx] if time_idx < len(hourly.get("relative_humidity_2m", [])) else 50,
-                cw.get("wind_speed", 0)
-            ),
-            humidity=hourly.get("relative_humidity_2m", [50])[time_idx] if time_idx < len(hourly.get("relative_humidity_2m", [])) else 50,
-            wind_speed=cw.get("wind_speed", 0),
-            wind_direction=cw.get("wind_direction", 0),
-            wind_direction_text=self._get_wind_direction_text(cw.get("wind_direction", 0)),
-            precipitation=hourly.get("precipitation", [0])[time_idx] if time_idx < len(hourly.get("precipitation", [])) else 0,
-            pressure=hourly.get("surface_pressure", [1013])[time_idx] if time_idx < len(hourly.get("surface_pressure", [])) else 1013,
+            temperature=cw.get("temperature", 0.0),
+            feels_like=self._calculate_feels_like(cw.get("temperature", 0.0), humidity_val, raw_wind_speed),
+            humidity=int(humidity_val),
+            wind_speed=round(float(raw_wind_speed), 1),
+            wind_direction=int(raw_wind_dir),
+            wind_direction_text=self._get_wind_direction_text(raw_wind_dir),
+            precipitation=round(float(precip_val), 1),
+            pressure=round(float(pressure_val), 1),
             weather_code=weather_code,
             weather_description=self._get_weather_description(weather_code),
             is_day=self._is_daytime(current_time),
-            time=datetime.fromisoformat(current_time.replace("Z", "+00:00")),
+            time=datetime.now(),
             source=WeatherSource.OPEN_METEO,
-            visibility=hourly.get("visibility", [10000])[time_idx] / 1000 if time_idx < len(hourly.get("visibility", [])) else 10,
-            cloud_cover=hourly.get("cloud_cover", [0])[time_idx] if time_idx < len(hourly.get("cloud_cover", [])) else 0,
-            uv_index=hourly.get("uv_index", [0])[time_idx] if time_idx < len(hourly.get("uv_index", [])) else 0,
+            visibility=round(float(vis_val), 2),
+            cloud_cover=int(cloud_val),
+            uv_index=round(float(uv_val), 1),
         )
 
     # Forecast

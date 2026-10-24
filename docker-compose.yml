@@ -232,22 +232,6 @@ services:
     networks:
       - confluent
 
-  redis:
-    image: redis:7-alpine
-    hostname: redis
-    container_name: redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - confluent
-
   # Spark Streaming job (Kafka -> Spark -> Cassandra)
   spark-streaming:
     image: apache/spark:3.4.1-python3
@@ -296,11 +280,9 @@ services:
       - CASSANDRA_KEYSPACE=spark_streams
       - CASSANDRA_USERNAME=cassandra
       - CASSANDRA_PASSWORD=cassandra
-      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=broker:29092
+      - KAFKA_TOPIC_WEATHER=weather-events
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -340,4 +322,3 @@ networks:
 volumes:
   postgres_data:
   cassandra_data:
-  redis_data:

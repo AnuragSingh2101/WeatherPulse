@@ -19,10 +19,21 @@ class Settings(BaseSettings):
     cassandra_username: str = "cassandra"
     cassandra_password: str = "cassandra"
 
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    # MET Norway API
+    metno_base_url: str = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+    metno_user_agent: str = "WeatherPulse/1.0 (https://github.com/AnuragSingh2101/WeatherPulse; anuragsingh2101@users.noreply.github.com)"
 
-    # Cache TTL
+    # OpenStreetMap Nominatim Geocoding API
+    nominatim_base_url: str = "https://nominatim.openstreetmap.org/search"
+    nominatim_reverse_url: str = "https://nominatim.openstreetmap.org/reverse"
+    nominatim_user_agent: str = "WeatherPulse/1.0 (https://github.com/AnuragSingh2101/WeatherPulse; anuragsingh2101@users.noreply.github.com)"
+
+    # Apache Kafka
+    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_topic_weather: str = "weather-events"
+    weather_fetch_interval_seconds: int = 300
+
+    # Cache TTL (In-Memory RFC 7234 compliant caching for rate limiting protection)
     cache_ttl_current: int = 600
     cache_ttl_forecast: int = 1800
     cache_ttl_historical: int = 3600
@@ -33,7 +44,11 @@ class Settings(BaseSettings):
     
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def kafka_bootstrap_servers_list(self) -> List[str]:
+        return [s.strip() for s in self.kafka_bootstrap_servers.split(",") if s.strip()]
 
     class Config:
         env_file = ".env"

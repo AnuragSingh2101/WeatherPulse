@@ -143,4 +143,63 @@ export async function healthCheck(): Promise<{ status: string; timestamp: string
   return fetchApi<{ status: string; timestamp: string }>('/health');
 }
 
-export { ApiError };
+// OpenStreetMap Nominatim Location Search
+export async function searchLocations(query: string, limit = 5): Promise<import('../types').LocationSearchResult[]> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: limit.toString(),
+  });
+  return fetchApi<import('../types').LocationSearchResult[]>(`/locations/search?${params.toString()}`);
+}
+
+// OpenStreetMap Nominatim Reverse Geocoding
+export async function reverseGeocodeLocation(lat: number, lon: number): Promise<import('../types').LocationSearchResult> {
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+  });
+  return fetchApi<import('../types').LocationSearchResult>(`/locations/reverse?${params.toString()}`);
+}
+
+// MET Norway Locationforecast 2.0 Compact
+export async function getMETNorwayForecast(lat: number, lon: number): Promise<import('../types').METNorwayForecastResponse> {
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+    source: 'met-no',
+  });
+  return fetchApi<import('../types').METNorwayForecastResponse>(`/weather/forecast?${params.toString()}`);
+}
+
+// Kafka Weather Streaming - Start
+export async function startWeatherStream(
+  locations?: Array<{ name: string; latitude: number; longitude: number }>,
+  fetchIntervalSeconds?: number
+): Promise<import('../types').WeatherStreamStatus> {
+  return fetchApi<import('../types').WeatherStreamStatus>('/weather/stream/start', {
+    method: 'POST',
+    body: JSON.stringify({
+      locations,
+      fetch_interval_seconds: fetchIntervalSeconds,
+    }),
+  });
+}
+
+// Kafka Weather Streaming - Stop
+export async function stopWeatherStream(): Promise<import('../types').WeatherStreamStatus> {
+  return fetchApi<import('../types').WeatherStreamStatus>('/weather/stream/stop', {
+    method: 'POST',
+  });
+}
+
+// Kafka Weather Streaming - Status
+export async function getWeatherStreamStatus(): Promise<import('../types').WeatherStreamStatus> {
+  return fetchApi<import('../types').WeatherStreamStatus>('/weather/stream/status');
+}
+
+// Weather Integration Health Status
+export async function getWeatherIntegrationHealth(): Promise<Record<string, any>> {
+  return fetchApi<Record<string, any>>('/weather/health');
+}
+
+export { ApiError };

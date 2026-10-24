@@ -3,48 +3,32 @@ import time
 import logging
 from typing import Any, Optional, Dict
 from functools import wraps
-import redis.asyncio as redis
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 class CacheService:
+    """
+    Lightweight, in-memory cache service.
+    Replaces Redis to fetch live/real weather telemetry while honoring
+    upstream rate limits and RFC 7234 HTTP caching standards.
+    """
     def __init__(self):
-        self.redis_client: Optional[redis.Redis] = None
         self.local_cache: Dict[str, tuple[Any, float]] = {}  # key -> (value, expiry)
-        self.use_redis = False
 
     async def connect(self):
-        """Try to connect to Redis, fall back to local cache"""
-        try:
-            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-            await self.redis_client.ping()
-            self.use_redis = True
-            logger.info("Connected to Redis cache")
-        except Exception as e:
-            logger.warning(f"Redis not available, using local cache: {e}")
-            self.use_redis = False
-            self.redis_client = None
+        """Initialize in-memory cache without external Redis dependencies"""
+        self.local_cache.clear()
+        logger.info("In-memory cache initialized (Redis removed)")
 
     async def close(self):
-        """Close Redis connection"""
-        if self.redis_client:
-            await self.redis_client.close()
+        """Clear cache on shutdown"""
+        self.local_cache.clear()
 
     def _is_expired(self, expiry: float) -> bool:
         return time.time() > expiry
 
     async def get(self, key: str) -> Optional[Any]:
-        """Get value from cache"""
-        if self.use_redis and self.redis_client:
-            try:
-                value = await self.redis_client.get(key)
-                if value:
-                    return json.loads(value)
-            except Exception as e:
-                logger.warning(f"Redis get error: {e}")
-        
-        # Fallback to local cache
+        """Get value from in-memory cache if not expired"""
         if key in self.local_cache:
             value, expiry = self.local_cache[key]
             if not self._is_expired(expiry):
@@ -54,70 +38,43 @@ class CacheService:
         return None
 
     async def set(self, key: str, value: Any, ttl: int) -> bool:
-        """Set value in cache with TTL"""
+        """Store value in memory with TTL seconds"""
         expiry = time.time() + ttl
-        
-        if self.use_redis and self.redis_client:
-            try:
-                await self.redis_client.setex(key, ttl, json.dumps(value, default=str))
-                return True
-            except Exception as e:
-                logger.warning(f"Redis set error: {e}")
-        
-        # Fallback to local cache
         self.local_cache[key] = (value, expiry)
         return True
 
     async def delete(self, key: str) -> bool:
-        """Delete key from cache"""
-        if self.use_redis and self.redis_client:
-            try:
-                await self.redis_client.delete(key)
-            except Exception as e:
-                logger.warning(f"Redis delete error: {e}")
-        
+        """Delete key from in-memory cache"""
         if key in self.local_cache:
             del self.local_cache[key]
         return True
 
     async def clear_pattern(self, pattern: str) -> int:
-        """Clear keys matching pattern (Redis only)"""
-        if self.use_redis and self.redis_client:
-            try:
-                keys = []
-                async for key in self.redis_client.scan_iter(match=pattern):
-                    keys.append(key)
-                if keys:
-                    return await self.redis_client.delete(*keys)
-            except Exception as e:
-                logger.warning(f"Redis clear pattern error: {e}")
-        return 0
+        """Clear keys matching prefix pattern"""
+        prefix = pattern.rstrip("*")
+        keys_to_del = [k for k in self.local_cache if k.startswith(prefix)]
+        for k in keys_to_del:
+            del self.local_cache[k]
+        return len(keys_to_del)
 
     def cached(self, ttl: int, key_prefix: str = ""):
-        """Decorator for caching function results"""
+        """Decorator for caching async function results"""
         def decorator(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-                # Create cache key from function name and arguments
                 cache_key = f"{key_prefix}:{func.__name__}:{hash(str(args) + str(sorted(kwargs.items())))}"
-                
-                # Try to get from cache
                 cached = await self.get(cache_key)
                 if cached is not None:
                     logger.debug(f"Cache hit: {cache_key}")
                     return cached
-                
-                # Call function
                 result = await func(*args, **kwargs)
-                
-                # Store in cache
                 await self.set(cache_key, result, ttl)
                 logger.debug(f"Cache set: {cache_key}")
                 return result
             return wrapper
         return decorator
 
-# Singleton
+# Singleton instance
 _cache_service: Optional[CacheService] = None
 
 async def get_cache_service() -> CacheService:

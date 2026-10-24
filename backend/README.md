@@ -18,15 +18,18 @@ backend/
 │   │   └── location.py      # Coordinates, bounding boxes, state & district models
 │   ├── routers/             # FastAPI APIRouter endpoints
 │   │   ├── health.py        # /health, /ready, /live service health probes
-│   │   ├── geocode.py       # Open-Meteo geocoding for Indian cities & coordinates
-│   │   ├── weather.py       # Current, forecast, historical, and dashboard endpoints
+│   │   ├── locations.py     # /locations/search & /reverse OpenStreetMap Nominatim
+│   │   ├── geocode.py       # Legacy Open-Meteo geocoding
+│   │   ├── weather.py       # MET Norway forecast, health, and Kafka stream controls
 │   │   ├── india.py         # National overview & state-level meteorological summaries
 │   │   └── cassandra.py     # Big data historical queries directly from Cassandra
 │   └── services/            # Core external service clients & data managers
-│       ├── open_meteo.py    # Asynchronous Open-Meteo REST API client
-│       ├── cassandra_client.py # Cassandra Cluster session manager, schema bootstrapping
-│       └── cache.py         # Redis caching client with TTL & fallback memory cache
-├── Dockerfile               # Multi-stage optimized Python 3.11-slim container
+│       ├── met_norway.py    # MET Norway Locationforecast 2.0 compact client with RFC 7234 cache
+│       ├── nominatim.py     # OpenStreetMap Nominatim client with 1 req/sec rate limit
+│       ├── weather_streamer.py # Background Kafka ingestion producer with lifecycle management
+│       ├── cassandra_client.py # Cassandra Cluster session manager
+│       └── cache.py         # In-memory TTL cache (Redis removed for real-data ingestion)
+├── Dockerfile               # Multi-stage optimized Python container
 └── requirements.txt         # Production dependencies
 ```
 
@@ -38,13 +41,17 @@ The backend uses `pydantic-settings` to parse configuration from `.env` or syste
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
+| `METNO_BASE_URL` | `https://api.met.no/weatherapi/locationforecast/2.0/compact` | MET Norway Compact endpoint |
+| `METNO_USER_AGENT` | `WeatherPulse/1.0 (...)` | Required identifying User-Agent with valid contact |
+| `NOMINATIM_BASE_URL` | `https://nominatim.openstreetmap.org/search` | OSM Nominatim place search endpoint |
+| `NOMINATIM_USER_AGENT` | `WeatherPulse/1.0 (...)` | Required OSM Nominatim User-Agent |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker bootstrap servers |
+| `KAFKA_TOPIC_WEATHER` | `weather-events` | Kafka topic for weather forecast events |
+| `WEATHER_FETCH_INTERVAL_SECONDS` | `300` | Ingestion polling interval (default 5 min) |
 | `CASSANDRA_HOSTS` | `cassandra` (or `localhost`) | Comma-separated Cassandra node addresses |
 | `CASSANDRA_PORT` | `9042` | Cassandra native protocol CQL port |
 | `CASSANDRA_KEYSPACE` | `spark_streams` | Cassandra keyspace containing weather data |
-| `REDIS_URL` | `redis://redis:6379/0` | Redis connection URL for caching API responses |
-| `CACHE_ENABLED` | `true` | Toggle Redis caching layer |
 | `CORS_ORIGINS` | `http://localhost:3000,...` | Allowed CORS origins for frontend access |
-| `LOG_LEVEL` | `INFO` | Application logging verbosity (`DEBUG`, `INFO`, `WARN`) |
 
 ---
 

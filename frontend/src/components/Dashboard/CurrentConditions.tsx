@@ -27,7 +27,14 @@ export function CurrentConditions({ data }: CurrentConditionsProps) {
     default: <Thermometer className="w-6 h-6 text-primary-400" />,
   };
 
-  const getWeatherIcon = (code: number) => {
+  const getWeatherIcon = (code: number, description?: string) => {
+    const desc = (description || '').toLowerCase();
+    if (desc.includes('thunder')) return <span className="text-yellow-400 text-3xl">⛈️</span>;
+    if (desc.includes('rain') || desc.includes('shower') || desc.includes('drizzle')) return weatherIcons.rain;
+    if (desc.includes('snow') || desc.includes('sleet')) return <span className="text-blue-300 text-3xl">❄️</span>;
+    if (desc.includes('cloud') || desc.includes('overcast') || desc.includes('fog')) return weatherIcons.clouds;
+    if (desc.includes('fair') || desc.includes('clear')) return weatherIcons.clear;
+
     if (code === 0) return weatherIcons.clear;
     if (code <= 3) return weatherIcons.clouds;
     if (code >= 51 && code <= 67) return weatherIcons.rain;
@@ -37,8 +44,26 @@ export function CurrentConditions({ data }: CurrentConditionsProps) {
     return weatherIcons.default;
   };
 
-  const sourceLabel = current.source === 'observed' ? 'Observed (Weather Station)' : 'Model Estimate (Open-Meteo)';
-  const sourceIcon = current.source === 'observed' ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Info className="w-4 h-4 text-blue-400" />;
+  const getSourceDetails = (source?: string) => {
+    if (source === 'met-no') {
+      return {
+        label: 'Live Telemetry (MET Norway)',
+        icon: <Cloud className="w-4 h-4 text-cyan-400" />,
+      };
+    }
+    if (source === 'observed') {
+      return {
+        label: 'Observed (Weather Station)',
+        icon: <CheckCircle className="w-4 h-4 text-green-400" />,
+      };
+    }
+    return {
+      label: 'Model Estimate (Open-Meteo)',
+      icon: <Info className="w-4 h-4 text-blue-400" />,
+    };
+  };
+
+  const { label: sourceLabel, icon: sourceIcon } = getSourceDetails(current.source);
 
   const feelsLike = current.feelsLike ?? (current as any).feels_like ?? current.temperature;
   const windSpeed = current.windSpeed ?? (current as any).wind_speed ?? 0;
@@ -65,7 +90,7 @@ export function CurrentConditions({ data }: CurrentConditionsProps) {
             </div>
           </div>
           <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-primary-600/20 flex items-center justify-center">
-            {getWeatherIcon(weatherCode)}
+            {getWeatherIcon(weatherCode, weatherDescription)}
           </div>
         </div>
 
@@ -103,7 +128,7 @@ export function CurrentConditions({ data }: CurrentConditionsProps) {
           icon={<CloudRain className="w-5 h-5 text-cyan-400" />}
           label="Precipitation"
           value={`${current.precipitation} mm`}
-          description={getPrecipitationDescription(current.precipitation)}
+          description={getPrecipitationDescription(current.precipitation, data?.hourly)}
         />
       </div>
 
@@ -116,7 +141,13 @@ export function CurrentConditions({ data }: CurrentConditionsProps) {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="text-dark-500">Visibility</span>
-            <p className="text-white font-medium">{(current as any).visibility ? `${(current as any).visibility / 1000} km` : 'N/A'}</p>
+            <p className="text-white font-medium">
+              {(() => {
+                const v = (current as any).visibility;
+                if (v === undefined || v === null) return 'N/A';
+                return v > 100 ? `${(v / 1000).toFixed(1)} km` : `${Number(v).toFixed(1)} km`;
+              })()}
+            </p>
           </div>
           <div>
             <span className="text-dark-500">Cloud Cover</span>
@@ -169,12 +200,19 @@ function getPressureDescription(pressure: number): string {
   return 'Very high';
 }
 
-function getPrecipitationDescription(precip: number): string {
-  if (precip === 0) return 'No precipitation';
-  if (precip < 2.5) return 'Light';
-  if (precip < 10) return 'Moderate';
-  if (precip < 50) return 'Heavy';
-  return 'Very heavy';
+function getPrecipitationDescription(precip: number, hourlyForecast?: any[]): string {
+  if (precip > 0) {
+    if (precip < 2.5) return 'Light rain';
+    if (precip < 10) return 'Moderate rain';
+    if (precip < 50) return 'Heavy rain';
+    return 'Very heavy rain';
+  }
+  const upcomingRain = (hourlyForecast || []).slice(0, 6).find((h: any) => (h.precipitation || 0) > 0);
+  if (upcomingRain) {
+    const amount = upcomingRain.precipitation ?? 0;
+    return `Rain expected (~${amount} mm)`;
+  }
+  return 'No precipitation at this hour';
 }
 
 function calculateDewPoint(temp: number, humidity: number): number {
@@ -185,9 +223,15 @@ function calculateDewPoint(temp: number, humidity: number): number {
 }
 
 function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
+  if (!isoString) return 'just now';
+  let date: Date;
+  if (!isoString.endsWith('Z') && !isoString.includes('+')) {
+    date = new Date(isoString + 'Z');
+  } else {
+    date = new Date(isoString);
+  }
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = Math.abs(now.getTime() - date.getTime());
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
 

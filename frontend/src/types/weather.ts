@@ -25,7 +25,7 @@ export interface CurrentWeather {
   weatherDescription: string;
   isDay: boolean;
   time: string; // ISO timestamp
-  source: 'model' | 'observed';
+  source: 'model' | 'observed' | 'met-no';
 }
 
 export interface HourlyForecast {
@@ -119,7 +119,7 @@ export interface WeatherDashboardData {
   trends: WeatherTrends | null;
   alerts: WeatherAlert[];
   lastUpdated: string;
-  dataSource: 'open-meteo' | 'cassandra' | 'mixed';
+  dataSource: 'open-meteo' | 'cassandra' | 'mixed' | 'met-no';
   isLoading: boolean;
   error: string | null;
 }
@@ -263,3 +263,56 @@ export interface AppState {
   flyToIndia: () => void;
   reset: () => void;
 }
+
+// Weather Explorer & MET Norway & Kafka Stream Types
+export interface LocationSearchResult {
+  placeId?: number;
+  name: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  type?: string;
+  category?: string;
+  importance?: number;
+  address?: Record<string, any>;
+}
+
+export interface METNorwayPoint {
+  time: string;
+  airTemperatureC?: number;
+  relativeHumidityPercent?: number;
+  windSpeedMps?: number;
+  windDirectionDegrees?: number;
+  windDirectionText?: string;
+  airPressureHpa?: number;
+  cloudAreaFractionPercent?: number;
+  precipitationMm?: number;
+  symbolCode?: string;
+  condition?: string;
+  dewPointC?: number;
+}
+
+export interface METNorwayForecastResponse {
+  source: string;
+  updatedAt?: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  current: METNorwayPoint;
+  forecastHourly: METNorwayPoint[];
+  hourly?: HourlyForecast[];
+  daily?: DailyForecast[];
+  totalPoints?: number;
+}
+
+export interface WeatherStreamStatus {
+  isRunning: boolean;
+  configuredLocations: Array<{ name: string; latitude: number; longitude: number }>;
+  fetchIntervalSeconds: number;
+  lastSuccessfulFetchTime?: string;
+  lastPublishedEventTime?: string;
+  publishedEventsCount: number;
+  lastError?: string;
+  topic: string;
+}

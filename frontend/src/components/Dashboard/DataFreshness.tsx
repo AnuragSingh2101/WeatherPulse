@@ -8,9 +8,13 @@ interface DataFreshnessProps {
 export function DataFreshness({ data }: DataFreshnessProps) {
   if (!data) return null;
 
-  const lastUpdated = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
+  let lastUpdated = new Date();
+  if (data.lastUpdated) {
+    const raw = data.lastUpdated;
+    lastUpdated = (!raw.endsWith('Z') && !raw.includes('+')) ? new Date(raw + 'Z') : new Date(raw);
+  }
   const now = new Date();
-  const diffMs = now.getTime() - lastUpdated.getTime();
+  const diffMs = Math.abs(now.getTime() - lastUpdated.getTime());
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
 
@@ -45,24 +49,30 @@ export function DataFreshness({ data }: DataFreshnessProps) {
   }
 
   const sourceLabels: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
+    'met-no': {
+      label: 'MET Norway (Live)',
+      icon: <Cloud className="w-4 h-4 text-cyan-400" />,
+      description: 'Real-time meteorological telemetry directly from API (Uncached)',
+    },
     'open-meteo': {
       label: 'Open-Meteo',
-      icon: <Cloud className="w-4 h-4" />,
+      icon: <Cloud className="w-4 h-4 text-primary-400" />,
       description: 'Weather model forecast',
     },
     'cassandra': {
       label: 'Cassandra',
-      icon: <Database className="w-4 h-4" />,
+      icon: <Database className="w-4 h-4 text-yellow-400" />,
       description: 'Historical observations',
     },
     'mixed': {
       label: 'Mixed Sources',
-      icon: <Shield className="w-4 h-4" />,
+      icon: <Shield className="w-4 h-4 text-purple-400" />,
       description: 'Combined model & observed data',
     },
   };
 
-  const sourceInfo = sourceLabels[data.dataSource] || sourceLabels['open-meteo'];
+  const sourceInfo = sourceLabels[data.dataSource] || sourceLabels['met-no'] || sourceLabels['open-meteo'];
+  const isDirectLiveStream = data.dataSource === 'met-no';
 
   return (
     <div className="glass-card p-4 border-t border-dark-700/50 mt-4">
@@ -85,34 +95,19 @@ export function DataFreshness({ data }: DataFreshnessProps) {
       </div>
       <p className="text-dark-500 text-xs mt-3 ml-10">{sourceInfo.description}</p>
 
-      {/* Cache status */}
-      <div className="mt-3 pt-3 border-t border-dark-700/30 flex items-center justify-between text-xs text-dark-500">
-        <span>Next auto-refresh: ~{getNextRefreshMinutes(data.dataSource)} min</span>
-        <span className="flex items-center gap-1">
+      {/* Stream status */}
+      <div className="mt-3 pt-3 border-t border-dark-700/30 flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1.5 text-cyan-400 font-medium">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          Live Real-Time Telemetry
+        </span>
+        <span className="flex items-center gap-1 text-emerald-400 font-medium">
           <Clock className="w-3 h-3" />
-          Cached for {getCacheDuration(data.dataSource)} min
+          Direct API Stream (Zero Cache)
         </span>
       </div>
     </div>
   );
-}
-
-function getNextRefreshMinutes(source: string): number {
-  switch (source) {
-    case 'open-meteo': return 10;
-    case 'cassandra': return 60;
-    case 'mixed': return 10;
-    default: return 10;
-  }
-}
-
-function getCacheDuration(source: string): number {
-  switch (source) {
-    case 'open-meteo': return 10;
-    case 'cassandra': return 60;
-    case 'mixed': return 10;
-    default: return 10;
-  }
 }
 
 export default DataFreshness;

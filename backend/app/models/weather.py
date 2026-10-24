@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 
 class WeatherSource(str, Enum):
+    MET_NORWAY = "met-no"
     OPEN_METEO = "open-meteo"
     CASSANDRA = "cassandra"
     MIXED = "mixed"

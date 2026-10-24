@@ -7,6 +7,7 @@ import { Forecast } from './Forecast';
 import { HistoricalCharts } from './HistoricalCharts';
 import { Alerts } from './Alerts';
 import { DataFreshness } from './DataFreshness';
+import { WeatherExplorer } from '../WeatherExplorer';
 import type { WeatherDashboardData } from '../../types';
 
 export function WeatherDashboard() {
@@ -16,7 +17,7 @@ export function WeatherDashboard() {
   const storeWeatherData = useWeatherData();
   const setWeatherData = useAppStore((state) => state.setWeatherData);
   const closeDashboard = useAppStore((state) => state.toggleDashboard);
-  const [activeTab, setActiveTab] = useState<'current' | 'forecast' | 'historical' | 'alerts'>('current');
+  const [activeTab, setActiveTab] = useState<'current' | 'forecast' | 'historical' | 'alerts' | 'explorer'>('current');
 
   const { data: fetchedData, isLoading, error, refetch } = useDashboardData(selectedLocation, locationName, isOpen);
 
@@ -76,6 +77,7 @@ export function WeatherDashboard() {
   const isActuallyLoading = isLoading && !weatherData;
 
   const tabs = [
+    { id: 'explorer', label: 'Weather Explorer', icon: null },
     { id: 'current', label: 'Current', icon: null },
     { id: 'forecast', label: 'Forecast', icon: null },
     { id: 'historical', label: 'History', icon: null },
@@ -182,6 +184,7 @@ export function WeatherDashboard() {
             </div>
           ) : (
             <>
+              {activeTab === 'explorer' && <WeatherExplorer />}
               {activeTab === 'current' && <CurrentConditions data={weatherData} />}
               {activeTab === 'forecast' && <Forecast data={weatherData} />}
               {activeTab === 'historical' && <HistoricalCharts data={weatherData} />}

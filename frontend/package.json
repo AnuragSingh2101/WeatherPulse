@@ -10,14 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.22",
+    "date-fns": "^2.30.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.294.0",
     "maplibre-gl": "^4.7.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-query": "^3.39.3",
-    "zustand": "^4.4.7",
     "recharts": "^2.10.3",
-    "date-fns": "^2.30.0",
-    "lucide-react": "^0.294.0"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

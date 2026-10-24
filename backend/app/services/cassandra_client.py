@@ -1,9 +1,18 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
-from cassandra.cluster import Cluster, Session
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.query import SimpleStatement
+try:
+    from cassandra.cluster import Cluster, Session
+    from cassandra.auth import PlainTextAuthProvider
+    from cassandra.query import SimpleStatement
+    CASSANDRA_AVAILABLE = True
+except ImportError:
+    Cluster = Any
+    Session = Any
+    PlainTextAuthProvider = Any
+    SimpleStatement = Any
+    CASSANDRA_AVAILABLE = False
+
 from app.config import settings
 from app.models.weather import WeatherTrends, HistoricalDataPoint, WeatherSource, Coordinates
 
@@ -11,12 +20,16 @@ logger = logging.getLogger(__name__)
 
 class CassandraClient:
     def __init__(self):
-        self.cluster: Optional[Cluster] = None
-        self.session: Optional[Session] = None
+        self.cluster: Optional[Any] = None
+        self.session: Optional[Any] = None
         self.keyspace = settings.cassandra_keyspace
 
     async def connect(self):
         """Connect to Cassandra cluster and ensure schema exists"""
+        if not CASSANDRA_AVAILABLE:
+            logger.warning("cassandra-driver not available; skipping connection.")
+            return
+
         try:
             auth_provider = PlainTextAuthProvider(
                 username=settings.cassandra_username,

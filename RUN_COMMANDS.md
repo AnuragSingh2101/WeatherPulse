@@ -7,7 +7,7 @@ This guide contains copy-paste ready commands to run **Weatherpulse** in differe
 ## 🚀 Option 1: Run with Docker (Recommended)
 
 ### 🔹 Mode A: Lightweight Web Mode (< 1 GB RAM, Instant Startup)
-Runs the **FastAPI Backend**, **Redis Cache**, and **React 3D Frontend** with real live Open-Meteo weather data. Perfect for local development, demos, and testing.
+Runs the **FastAPI Backend** and **React Frontend with Weather Explorer** fetching live real data from MET Norway and OpenStreetMap. Perfect for local development, demos, and testing (Redis completely removed).
 
 ```bash
 docker compose up -d
@@ -16,11 +16,12 @@ docker compose up -d
 - **Frontend App**: [http://localhost:5173](http://localhost:5173)
 - **Backend API & Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Backend Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Weather Health**: [http://localhost:8000/api/weather/health](http://localhost:8000/api/weather/health)
 
 ---
 
-### 🔹 Mode B: Full Big Data Pipeline Mode (~14 Containers)
-Boots the entire enterprise distributed stack: **Airflow**, **Apache Kafka**, **Apache Spark Streaming**, **Apache Cassandra**, **Redis**, **FastAPI Backend**, and **React Frontend**.
+### 🔹 Mode B: Full Big Data Pipeline Mode
+Boots the entire enterprise distributed stack: **Airflow**, **Apache Kafka**, **Apache Spark Streaming**, **Apache Cassandra**, **FastAPI Backend**, and **React Frontend**.
 
 ```bash
 docker compose --profile full up -d
@@ -34,6 +35,15 @@ docker compose --profile full up -d
 
 ---
 
+### 📡 Inspecting Kafka Weather Events Topic
+
+To inspect real live weather forecast events published to the `weather-events` topic:
+```bash
+docker compose exec broker kafka-console-consumer --bootstrap-server localhost:9092 --topic weather-events --from-beginning
+```
+
+---
+
 ### 🛑 Stop Docker Containers
 
 To stop the running application:
@@ -41,7 +51,7 @@ To stop the running application:
 docker compose down
 ```
 
-To stop and remove stored volumes (cleans Cassandra and Redis state):
+To stop and remove stored volumes (cleans Cassandra and database state):
 ```bash
 docker compose down -v
 ```

@@ -35,7 +35,7 @@ export function useCurrentWeather(coords: Coordinates | null, enabled = true) {
     () => getCurrentWeather(coords!.lat, coords!.lon),
     {
       enabled: enabled && coords !== null,
-      staleTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: 0, // Direct real-time fetch without stale caching
     }
   );
 }
@@ -47,7 +47,7 @@ export function useForecast(coords: Coordinates | null, options?: { hours?: numb
     () => getForecast(coords!.lat, coords!.lon, options),
     {
       enabled: enabled && coords !== null,
-      staleTime: 30 * 60 * 1000, // 30 minutes
+      staleTime: 0,
     }
   );
 }
@@ -83,7 +83,7 @@ export function useDashboardData(coords: Coordinates | null, locationName: strin
     () => getDashboardData(coords!.lat, coords!.lon, locationName!),
     {
       enabled: enabled && coords !== null && locationName !== null,
-      staleTime: 10 * 60 * 1000,
+      staleTime: 0, // Direct real-time fetch without stale caching
     }
   );
 }

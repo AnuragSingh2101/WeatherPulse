@@ -11,7 +11,7 @@ from pyspark.sql.types import (
 )
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "broker:29092")
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "weather_data")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "weather-events")
 CASSANDRA_HOST = os.getenv("CASSANDRA_HOST", "cassandra")
 CASSANDRA_KEYSPACE = os.getenv("CASSANDRA_KEYSPACE", "spark_streams")
 CASSANDRA_TABLE = os.getenv("CASSANDRA_TABLE", "weather_data")
@@ -102,52 +102,71 @@ def create_cassandra_connection():
 
 
 def create_selection_df_from_kafka(spark_df):
-    # Define the schema for the nested weather data
+    from pyspark.sql.functions import coalesce, lit
+
+    # Unified schema supporting normalized weather-events and legacy fields
     schema = StructType(
         [
-            StructField("station_id", StringType(), False),
-            StructField("timestamp", StringType(), False),
+            StructField("event_id", StringType(), True),
+            StructField("station_id", StringType(), True),
+            StructField("forecast_time", StringType(), True),
+            StructField("timestamp", StringType(), True),
             StructField(
                 "location",
                 StructType(
-                    [  # Nested JSON for location
-                        StructField("city", StringType(), False),
-                        StructField("country", StringType(), False),
-                        StructField("latitude", FloatType(), False),
-                        StructField("longitude", FloatType(), False),
+                    [
+                        StructField("name", StringType(), True),
+                        StructField("city", StringType(), True),
+                        StructField("country", StringType(), True),
+                        StructField("latitude", FloatType(), True),
+                        StructField("longitude", FloatType(), True),
                     ]
                 ),
             ),
-            StructField("temperature", FloatType(), False),
-            StructField("humidity", IntegerType(), False),
-            StructField("pressure", FloatType(), False),
-            StructField("wind_speed", FloatType(), False),
-            StructField("wind_direction", StringType(), False),
-            StructField("precipitation", FloatType(), False),
-            StructField("weather_condition", StringType(), False),
+            StructField(
+                "weather",
+                StructType(
+                    [
+                        StructField("temperature_c", FloatType(), True),
+                        StructField("relative_humidity_percent", IntegerType(), True),
+                        StructField("air_pressure_hpa", FloatType(), True),
+                        StructField("wind_speed_mps", FloatType(), True),
+                        StructField("wind_direction_degrees", FloatType(), True),
+                        StructField("precipitation_mm", FloatType(), True),
+                        StructField("symbol_code", StringType(), True),
+                        StructField("condition", StringType(), True),
+                    ]
+                ),
+            ),
+            # Legacy direct fields
+            StructField("temperature", FloatType(), True),
+            StructField("humidity", IntegerType(), True),
+            StructField("pressure", FloatType(), True),
+            StructField("wind_speed", FloatType(), True),
+            StructField("wind_direction", StringType(), True),
+            StructField("precipitation", FloatType(), True),
+            StructField("weather_condition", StringType(), True),
         ]
     )
 
-    # Parse the Kafka value (JSON) according to the nested schema
     parsed_df = spark_df.selectExpr("CAST(value AS STRING)").select(
         from_json(col("value"), schema).alias("data")
     )
 
-    # Flatten the nested "location" field
     flattened_df = parsed_df.select(
-        col("data.station_id"),
-        col("data.timestamp"),
-        col("data.location.city").alias("city"),
-        col("data.location.country").alias("country"),
+        coalesce(col("data.event_id"), col("data.station_id"), lit("METNO-STATION")).alias("station_id"),
+        coalesce(col("data.forecast_time"), col("data.timestamp")).alias("timestamp"),
+        coalesce(col("data.location.name"), col("data.location.city"), lit("Unknown")).alias("city"),
+        coalesce(col("data.location.country"), lit("Global")).alias("country"),
         col("data.location.latitude").alias("latitude"),
         col("data.location.longitude").alias("longitude"),
-        col("data.temperature"),
-        col("data.humidity"),
-        col("data.pressure"),
-        col("data.wind_speed"),
-        col("data.wind_direction"),
-        col("data.precipitation"),
-        col("data.weather_condition"),
+        coalesce(col("data.weather.temperature_c"), col("data.temperature")).alias("temperature"),
+        coalesce(col("data.weather.relative_humidity_percent"), col("data.humidity")).alias("humidity"),
+        coalesce(col("data.weather.air_pressure_hpa"), col("data.pressure")).alias("pressure"),
+        coalesce(col("data.weather.wind_speed_mps"), col("data.wind_speed")).alias("wind_speed"),
+        coalesce(col("data.weather.condition"), col("data.wind_direction"), lit("N/A")).alias("wind_direction"),
+        coalesce(col("data.weather.precipitation_mm"), col("data.precipitation")).alias("precipitation"),
+        coalesce(col("data.weather.condition"), col("data.weather_condition"), lit("Fair")).alias("weather_condition"),
     )
 
     return flattened_df

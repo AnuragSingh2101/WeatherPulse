@@ -6,6 +6,7 @@ import { LayerSwitcher } from './components/UI/LayerSwitcher';
 import { WeatherCompareModal } from './components/UI/WeatherCompareModal';
 import { AlertAdvisoryModal } from './components/UI/AlertAdvisoryModal';
 import { DemoTourController } from './components/UI/DemoTourController';
+import { WeatherExplorerModal } from './components/UI/WeatherExplorerModal';
 import { useAppStore, useNavigationLevel, useSelectedState } from './store/useAppStore';
 import { useIndiaOverview as useIndiaOverviewQuery } from './hooks/useWeather';
 import {
@@ -21,6 +22,7 @@ import {
   ArrowRightLeft,
   Sparkles,
   ShieldAlert,
+  Radio,
 } from 'lucide-react';
 
 function App() {
@@ -32,6 +34,7 @@ function App() {
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
+  const [isExplorerOpen, setIsExplorerOpen] = useState(false);
 
   // Sync overview data to store for map layers & markers
   useEffect(() => {
@@ -44,7 +47,8 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isCompareOpen) setIsCompareOpen(false);
+        if (isExplorerOpen) setIsExplorerOpen(false);
+        else if (isCompareOpen) setIsCompareOpen(false);
         else if (isAlertsModalOpen) setIsAlertsModalOpen(false);
         else if (isTourActive) setIsTourActive(false);
         else if (navigationLevel !== 'india') flyToIndia();
@@ -56,7 +60,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigationLevel, flyToIndia, isCompareOpen, isAlertsModalOpen, isTourActive]);
+  }, [navigationLevel, flyToIndia, isCompareOpen, isAlertsModalOpen, isTourActive, isExplorerOpen]);
 
   const nationalAvgTemp = indiaOverview?.national?.avgTemperature ?? (indiaOverview?.national as any)?.avg_temperature ?? 27.5;
   const nationalAvgHumidity = indiaOverview?.national?.avgHumidity ?? (indiaOverview?.national as any)?.avg_humidity ?? 62;
@@ -96,6 +100,16 @@ function App() {
 
           {/* Right Controls & Feature Action Buttons */}
           <div className="flex items-center gap-1.5 pointer-events-auto order-2 lg:order-3">
+            {/* Weather Explorer Button */}
+            <button
+              onClick={() => setIsExplorerOpen(true)}
+              className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-lg active:scale-95"
+              title="Interactive Weather Location Selection, Leaflet Map & Kafka Ingestion"
+            >
+              <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="hidden sm:inline">Weather Explorer</span>
+            </button>
+
             {/* Live Presentation Tour Preset Button */}
             <button
               onClick={() => setIsTourActive(!isTourActive)}
@@ -235,6 +249,7 @@ function App() {
       <WeatherDashboard />
 
       {/* Feature Modals */}
+      <WeatherExplorerModal isOpen={isExplorerOpen} onClose={() => setIsExplorerOpen(false)} />
       <WeatherCompareModal isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} />
       <AlertAdvisoryModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} />
       <DemoTourController isActive={isTourActive} onClose={() => setIsTourActive(false)} />
