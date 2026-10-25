@@ -52,7 +52,7 @@ export function DataFreshness({ data }: DataFreshnessProps) {
     'met-no': {
       label: 'MET Norway (Live)',
       icon: <Cloud className="w-4 h-4 text-cyan-400" />,
-      description: 'Real-time meteorological telemetry directly from API (Uncached)',
+      description: 'Real-time meteorological weather data from MET Norway',
     },
     'open-meteo': {
       label: 'Open-Meteo',
@@ -103,7 +103,6 @@ export function DataFreshness({ data }: DataFreshnessProps) {
         </span>
         <span className="flex items-center gap-1 text-emerald-400 font-medium">
           <Clock className="w-3 h-3" />
-          Direct API Stream (Zero Cache)
         </span>
       </div>
     </div>
